@@ -1,0 +1,4 @@
+# fd-leak-detector has no external dependencies
+# Uses only Python standard library:
+#   - os, sys, time, argparse
+#   - pathlib, collections, datetime
