@@ -56,6 +56,31 @@ python3 fd_leak_detector.py --high-fd
 
 Lists all processes with 100+ open FDs. Good for quick sanity checks.
 
+### Read FD leaks for a specific process
+
+```bash
+python3 fd_leak_detector.py --read-leaks 1234
+python3 fd_leak_detector.py --read-leaks 1234 --samples 5 --interval 1
+```
+
+Takes multiple samples of a process's FDs and reports what's being leaked. Shows:
+- Total FDs opened and closed between samples
+- Net leak count
+- Breakdown by FD type (socket, pipe, file, etc.)
+- Sample of leaked FD targets
+
+Options:
+- `--samples`: Number of samples to take (default: 3)
+- `--interval`: Time between samples in seconds (default: 2)
+
+### Detailed monitoring mode
+
+```bash
+python3 fd_leak_detector.py --monitor-detailed --duration 60 --show-types
+```
+
+Like regular monitoring but shows what types of FDs are being leaked (sockets, pipes, files) with sample targets.
+
 ## What a leak looks like
 
 Run the monitor and watch for output like:
