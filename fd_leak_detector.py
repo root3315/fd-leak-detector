@@ -6,6 +6,7 @@ This utility monitors /proc to detect processes with growing FD counts,
 helping identify potential file descriptor leaks in production systems.
 """
 
+import json
 import os
 import sys
 import time
@@ -459,14 +460,75 @@ def list_top_processes(top_n=20):
     """List processes sorted by FD count."""
     snapshot = snapshot_all_processes()
     sorted_procs = sorted(snapshot.values(), key=lambda x: x["fd_count"], reverse=True)
-    
+
     print(f"Top {top_n} processes by FD count:\n")
     print(f"{'PID':>8} {'FD Count':>10}  Process")
     print("-" * 50)
-    
+
     for proc in sorted_procs[:top_n]:
         name = proc["name"][:35] if len(proc["name"]) > 35 else proc["name"]
         print(f"{proc['pid']:8} {proc['fd_count']:10}  {name}")
+
+
+def list_top_processes_json(top_n=20):
+    """List processes sorted by FD count in JSON format."""
+    snapshot = snapshot_all_processes()
+    sorted_procs = sorted(snapshot.values(), key=lambda x: x["fd_count"], reverse=True)
+
+    result = {
+        "timestamp": datetime.now().isoformat(),
+        "top_n": top_n,
+        "processes": [
+            {"pid": p["pid"], "fd_count": p["fd_count"], "name": p["name"]}
+            for p in sorted_procs[:top_n]
+        ]
+    }
+    print(json.dumps(result, indent=2))
+
+
+def inspect_process_json(pid, show_fds=False):
+    """Inspect a specific process for FD usage in JSON format."""
+    info = get_process_info(pid)
+    if not info:
+        result = {
+            "error": f"Cannot access process {pid}",
+            "pid": pid
+        }
+        print(json.dumps(result, indent=2))
+        return
+
+    result = {
+        "pid": pid,
+        "name": info["name"],
+        "fd_count": info["fd_count"]
+    }
+
+    if show_fds:
+        details = get_fd_details(pid)
+        if details:
+            result["fd_breakdown"] = details["by_type"]
+            result["open_fds"] = [
+                {"fd": fd_num, "target": target}
+                for fd_num, target in details["sample"]
+            ]
+
+    print(json.dumps(result, indent=2))
+
+
+def find_high_fd_processes_json(min_fd_count=100):
+    """Find processes with high FD counts in JSON format."""
+    high_fd = find_high_fd_processes(min_fd_count)
+
+    result = {
+        "timestamp": datetime.now().isoformat(),
+        "min_fd_count": min_fd_count,
+        "count": len(high_fd),
+        "processes": [
+            {"pid": p["pid"], "fd_count": p["fd_count"], "name": p["name"]}
+            for p in high_fd
+        ]
+    }
+    print(json.dumps(result, indent=2))
 
 
 def main():
@@ -481,6 +543,7 @@ Examples:
   %(prog)s --high-fd          Find processes with high FD counts
   %(prog)s --read-leaks 1234  Read FD leaks for a specific process
   %(prog)s --monitor-detailed Detailed leak monitoring with FD types
+  %(prog)s --top --json       Output as JSON for programmatic use
         """
     )
 
@@ -508,6 +571,8 @@ Examples:
                         help="Detailed monitoring showing leaked FD types")
     parser.add_argument("--show-types", action="store_true",
                         help="Show FD types in detailed monitoring")
+    parser.add_argument("--json", "-j", action="store_true",
+                        help="Output results as JSON")
 
     args = parser.parse_args()
 
@@ -517,22 +582,31 @@ Examples:
         sys.exit(0)
 
     if args.top:
-        list_top_processes()
+        if args.json:
+            list_top_processes_json()
+        else:
+            list_top_processes()
 
     if args.monitor:
         monitor_continuous(args.interval, args.duration, args.threshold)
 
     if args.inspect:
-        inspect_process(args.inspect, args.show_fds)
+        if args.json:
+            inspect_process_json(args.inspect, args.show_fds)
+        else:
+            inspect_process(args.inspect, args.show_fds)
 
     if args.high_fd:
-        high_fd = find_high_fd_processes()
-        if high_fd:
-            print(f"Processes with high FD counts (>=100):\n")
-            for proc in high_fd:
-                print(f"  PID {proc['pid']:6} | FDs: {proc['fd_count']:5} | {proc['name']}")
+        if args.json:
+            find_high_fd_processes_json()
         else:
-            print("No processes found with FD count >= 100")
+            high_fd = find_high_fd_processes()
+            if high_fd:
+                print(f"Processes with high FD counts (>=100):\n")
+                for proc in high_fd:
+                    print(f"  PID {proc['pid']:6} | FDs: {proc['fd_count']:5} | {proc['name']}")
+            else:
+                print("No processes found with FD count >= 100")
 
     if args.read_leaks:
         read_process_leaks(args.read_leaks, args.interval, args.samples)
