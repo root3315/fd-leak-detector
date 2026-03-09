@@ -26,6 +26,12 @@ python3 fd_leak_detector.py --top
 
 Shows the 20 processes with the most open file descriptors.
 
+Add `--json` for programmatic use:
+
+```bash
+python3 fd_leak_detector.py --top --json
+```
+
 ### Continuous monitoring
 
 ```bash
@@ -48,6 +54,13 @@ python3 fd_leak_detector.py --inspect 1234 --show-fds
 
 Get details about a single process. `--show-fds` lists the actual open descriptors (sockets, pipes, files, etc).
 
+Use `--json` for programmatic output:
+
+```bash
+python3 fd_leak_detector.py --inspect 1234 --json
+python3 fd_leak_detector.py --inspect 1234 --show-fds --json
+```
+
 ### Find high FD processes
 
 ```bash
@@ -55,6 +68,12 @@ python3 fd_leak_detector.py --high-fd
 ```
 
 Lists all processes with 100+ open FDs. Good for quick sanity checks.
+
+Output as JSON:
+
+```bash
+python3 fd_leak_detector.py --high-fd --json
+```
 
 ### Read FD leaks for a specific process
 
